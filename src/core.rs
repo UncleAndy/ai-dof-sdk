@@ -33,20 +33,52 @@ impl DofCalculusCore {
         DofCalculusCore { epsilon: EPSILON }
     }
 
-    /// Non-linear sum of system degrees of freedom (§4.1).
+    /// Whether an entity belongs to the calculation set `calc` (DOF-SPEC §4.2).
     ///
-    /// Sum taken **only** over non-collapse-source entities (§4.2). As `current_dof → 0`,
-    /// `ln(1 + dof) → 0`: a collapse contributes ~0, never a finite negative
-    /// that a utilitarianism-style trade could "earn back". This is the
-    /// structural guard against liquidating a unique future-state carrier.
-    pub fn calculate_system_dof(&self, state: &SystemStateMatrix) -> f64 {
+    /// Excluded if it is a collapse source, OR if its `current_dof <= 0` and no available
+    /// option can raise its DoF (a node with no recovery path). A node at `DoF = 0` that
+    /// *can* be revived stays in the set — excluding it would let the system ignore a
+    /// salvageable being (Axiom 3).
+    pub fn is_included(&self, entity: &EntityState, options: &[ActionOption]) -> bool {
+        if entity.is_collapse_source {
+            return false;
+        }
+        if entity.current_dof > 0.0 {
+            return true;
+        }
+        // current_dof == 0 (or <= epsilon): keep only if some option can revive it
+        for opt in options {
+            if opt
+                .projected_dof_delta
+                .get(&entity.entity_id)
+                .copied()
+                .unwrap_or(0.0)
+                > 0.0
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Total System DoF Evaluation Index (§4.1): the pure Nash product — sum of
+    /// `ln(DoF)` over the calculation set `calc` (§4.2).
+    ///
+    /// The aggregate is an *evaluation index*, not an absolute measure: its values are
+    /// negative and only their ordering matters for comparing options. Because the sum is
+    /// over `ln(DoF)`, driving a revivable entity to `DoF = 0` contributes `ln(ε) ≈ −13.8`
+    /// (a finite floor against `−∞`), an enormous penalty that makes any option collapsing
+    /// such an entity dominated by options that spare or revive it (deontological veto on
+    /// creating collapse, Axiom 3). A literal product would give `−∞`; the ε-floor keeps
+    /// the index finite and comparable.
+    pub fn calculate_system_dof(&self, state: &SystemStateMatrix, options: &[ActionOption]) -> f64 {
         let mut total = 0.0;
         for entity in state.entities.values() {
-            if entity.is_collapse_source {
+            if !self.is_included(entity, options) {
                 continue;
             }
             let dof = entity.current_dof.max(self.epsilon);
-            total += (1.0 + dof).ln();
+            total += dof.ln();
         }
         total
     }
@@ -106,14 +138,14 @@ impl DofCalculusCore {
         if options.is_empty() {
             return None;
         }
-        let current = self.calculate_system_dof(current_state);
+        let current = self.calculate_system_dof(current_state, options);
         let mut best: Option<ActionOption> = None;
         let mut max_net: f64 = f64::NEG_INFINITY;
         let mut best_id: String = String::new();
 
         for option in options {
             let simulated = self.simulate(current_state, option);
-            let projected = self.calculate_system_dof(&simulated);
+            let projected = self.calculate_system_dof(&simulated, options);
             let net = self.net_delta(current_state, option, projected, current);
             let take = if net > max_net {
                 true

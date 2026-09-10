@@ -141,6 +141,6 @@ fn main() {
     println!("{}", decision.report.to_json());
 
     // Sanity: total_system_dof must be reproducible from the same state.
-    let expected = orch.core().calculate_system_dof(&state);
+    let expected = orch.core().calculate_system_dof(&state, &[]);
     assert!((expected - decision.report.total_system_dof).abs() < 1e-9);
 }

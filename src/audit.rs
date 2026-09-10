@@ -17,7 +17,7 @@ pub struct EntityReportRow {
     /// `false` iff `is_collapse_source`.
     pub included_in_sum: bool,
     pub current_dof: f64,
-    /// `included ? ln(1 + max(current_dof, ε)) : 0.0`.
+    /// `included ? ln(max(current_dof, ε)) : 0.0` (evaluation-index contribution).
     pub contribution: f64,
 }
 
@@ -69,9 +69,9 @@ impl DofCalculusCore {
     ) -> DofReport {
         let mut entity_rows: Vec<EntityReportRow> = Vec::new();
         for ent in current_state.entities.values() {
-            let included = !ent.is_collapse_source;
+            let included = self.is_included(ent, options);
             let contribution = if included {
-                (1.0 + ent.current_dof.max(self.epsilon)).ln()
+                ent.current_dof.max(self.epsilon).ln()
             } else {
                 0.0
             };
@@ -84,12 +84,12 @@ impl DofCalculusCore {
             });
         }
 
-        let total = self.calculate_system_dof(current_state);
+        let total = self.calculate_system_dof(current_state, options);
 
         let mut option_rows: Vec<OptionReportRow> = Vec::new();
         for option in options {
             let simulated = simulate_for_report(self, current_state, option);
-            let projected = self.calculate_system_dof(&simulated);
+            let projected = self.calculate_system_dof(&simulated, options);
             let net = net_delta_for_report(self, current_state, option, projected, total);
             let is_selected = match selected {
                 Some(s) => s.option_id == option.option_id,

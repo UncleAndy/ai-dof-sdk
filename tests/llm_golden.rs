@@ -91,7 +91,7 @@ fn llm_generator_golden_intersection() {
     let decision = orch.run(&state, Some(&generator));
 
     // The audit's total_system_dof must equal the direct calculation (reproducibility).
-    let direct = orch.core().calculate_system_dof(&state);
+    let direct = orch.core().calculate_system_dof(&state, &[]);
     assert!(
         (direct - decision.report.total_system_dof).abs() < 1e-9,
         "audit total_system_dof {}}} disagrees with direct calc {}",

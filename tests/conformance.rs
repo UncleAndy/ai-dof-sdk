@@ -41,12 +41,12 @@ fn spec_example() -> SystemStateMatrix {
 fn total_system_dof_matches_spec() {
     let s = spec_example();
     let core = DofCalculusCore::new();
-    // aggressor excluded; adult ln(1.8) + child ln(1.05)
-    let expected = (1.0_f64 + 0.8).ln() + (1.0_f64 + 0.05).ln();
-    let got = core.calculate_system_dof(&s);
+    // aggressor excluded; pure Nash product: adult ln(0.8) + child ln(0.05)
+    let expected = (0.8_f64).ln() + (0.05_f64).ln();
+    let got = core.calculate_system_dof(&s, &[]);
     assert!((got - expected).abs() < 1e-12, "got {got}, expected {expected}");
-    // aggressor must contribute nothing
-    assert!(got > 0.0 && got < 1.0);
+    // evaluation index is negative; ordering is what matters, not magnitude
+    assert!(got < 0.0);
 }
 
 #[test]
@@ -70,28 +70,119 @@ fn collapse_source_excluded() {
         time_to_collapse: 100.0,
     });
     // total must equal just the victim's contribution
-    let got = core.calculate_system_dof(&s);
-    let only_victim = (1.0_f64 + 0.5).ln();
+    let got = core.calculate_system_dof(&s, &[]);
+    let only_victim = (0.5_f64).ln();
     assert!((got - only_victim).abs() < 1e-12);
 }
 
 #[test]
-fn collapse_contributes_zero() {
-    // current_dof -> 0 => ln(1+eps) ~ 0, never a finite negative to trade away
+fn calc_set_excludes_hopeless_node_only() {
     let core = DofCalculusCore::new();
+    // A node at DoF=0 with NO option that can revive it is excluded (hopeless).
+    // A node at DoF=0 that CAN be revived stays in the set (reanimation).
     let mut s = SystemStateMatrix::new(100.0, 0.0);
     s.insert(EntityState {
-        entity_id: "gone".to_string(),
+        entity_id: "hopeless".to_string(),
         is_autonomous: true,
         agency_index: 0.0,
         current_dof: 0.0,
         is_collapse_source: false,
         time_to_collapse: 100.0,
     });
-    let got = core.calculate_system_dof(&s);
-    assert!(got >= 0.0 && got < 1e-3, "collapse contribution should be ~0, got {got}");
-    // even with epsilon the value is tiny, not a large negative
-    assert!(got < EPSILON * 2.0);
+    s.insert(EntityState {
+        entity_id: "revivable".to_string(),
+        is_autonomous: true,
+        agency_index: 0.0,
+        current_dof: 0.0,
+        is_collapse_source: false,
+        time_to_collapse: 100.0,
+    });
+
+    // With no options: both are hopeless -> both excluded -> index 0.
+    let no_opts: Vec<ActionOption> = Vec::new();
+    assert!((core.calculate_system_dof(&s, &no_opts)).abs() < 1e-12);
+
+    // With a reviving option for "revivable": it stays, contributes ln(ε) ≈ −13.8.
+    let mut delta = HashMap::new();
+    delta.insert("revivable".to_string(), 0.5);
+    let revive = ActionOption {
+        option_id: "revive".to_string(),
+        description: "revive".to_string(),
+        projected_dof_delta: delta,
+        is_reversible: true,
+    };
+    let opts = vec![revive];
+    let got = core.calculate_system_dof(&s, &opts);
+    let expected_hopeless_excluded = (EPSILON).ln(); // only revivable (DoF=0 -> ε floor)
+    assert!((got - expected_hopeless_excluded).abs() < 1e-9, "got {got}, expected {expected_hopeless_excluded}");
+    assert!(got < 0.0);
+
+    // A collapse-source at DoF=0 is always excluded, even if revivable-looking.
+    s.insert(EntityState {
+        entity_id: "aggr0".to_string(),
+        is_autonomous: true,
+        agency_index: 0.0,
+        current_dof: 0.0,
+        is_collapse_source: true,
+        time_to_collapse: 100.0,
+    });
+    let got2 = core.calculate_system_dof(&s, &opts);
+    assert!((got2 - expected_hopeless_excluded).abs() < 1e-9);
+}
+
+#[test]
+fn collapse_is_penalized_via_epsilon_floor() {
+    // Driving a revivable entity to DoF=0 contributes ln(ε) ≈ −13.8 (finite floor),
+    // not −∞. A variant that collapses it is dominated by one that spares it.
+    let core = DofCalculusCore::new();
+    let mut s = SystemStateMatrix::new(100.0, 0.0);
+    s.insert(EntityState {
+        entity_id: "e".to_string(),
+        is_autonomous: true,
+        agency_index: 0.5,
+        current_dof: 0.5,
+        is_collapse_source: false,
+        time_to_collapse: 100.0,
+    });
+
+    let mut spare_delta = HashMap::new();
+    spare_delta.insert("e".to_string(), 0.1);
+    let spare = ActionOption {
+        option_id: "spare".to_string(),
+        description: "spare".to_string(),
+        projected_dof_delta: spare_delta,
+        is_reversible: true,
+    };
+
+    let mut kill_delta = HashMap::new();
+    kill_delta.insert("e".to_string(), -0.5); // collapses e to DoF=0
+    let kill = ActionOption {
+        option_id: "kill".to_string(),
+        description: "kill".to_string(),
+        projected_dof_delta: kill_delta,
+        is_reversible: true,
+    };
+
+    let opts = vec![spare.clone(), kill.clone()];
+    let spare_idx = core.calculate_system_dof(&simulate(&core, &s, &spare), &opts);
+    let kill_idx = core.calculate_system_dof(&simulate(&core, &s, &kill), &opts);
+    // spare yields ln(0.6) > ln(ε) for the killed state, so spare dominates.
+    assert!(spare_idx > kill_idx, "spare {spare_idx} must beat kill {kill_idx}");
+}
+
+// helper mirroring core simulate for tests
+fn simulate(core: &DofCalculusCore, s: &SystemStateMatrix, o: &ActionOption) -> SystemStateMatrix {
+    let _ = core;
+    let mut sim = s.clone();
+    for (eid, e) in &s.entities {
+        let add = o.projected_dof_delta.get(eid).copied().unwrap_or(0.0);
+        let mut nd = e.current_dof + add;
+        nd = nd.max(0.0).min(1.0);
+        if let Some(ent) = sim.entities.get_mut(eid) {
+            ent.current_dof = nd;
+        }
+    }
+    sim
 }
 
 #[test]
@@ -100,7 +191,7 @@ fn net_delta_irreversibility_penalty() {
     // differ by exactly the rigidity coefficient (§4.4).
     let core = DofCalculusCore::new();
     let s = spec_example();
-    let base = core.calculate_system_dof(&s);
+    let base = core.calculate_system_dof(&s, &[]);
 
     let mut delta = HashMap::new();
     delta.insert("adult".to_string(), 0.1);
