@@ -1,0 +1,25 @@
+[package]
+name = "ai-dof-sdk"
+version = "0.1.0"
+edition = "2021"
+authors = ["Andrei Velikoredchanin"]
+license = "CC-BY-SA-4.0"
+description = "DOF-Core SDK (Rust): decision-verification protocol that maximizes total degrees of freedom. Conforms to DOF-SPEC v0.1."
+repository = "https://github.com/UncleAndy/ai-dof-sdk"
+homepage = "https://github.com/UncleAndy/ai-dof-sdk"
+keywords = ["dof", "agi", "ethics", "decision", "optionality"]
+categories = ["algorithms", "science"]
+
+[lib]
+name = "ai_dof_sdk"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ai-dof-sdk-cli"
+path = "src/bin/ai-dof-sdk-cli.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
