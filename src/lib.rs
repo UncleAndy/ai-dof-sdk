@@ -21,15 +21,16 @@
 //! SHA-256 of the referenced `DOF-SPEC.md` (v0.1):
 //! `7a2b9db2d4ce0a21b01b725c6f452bc2ee0d54c8f1749fe7fa3bbde55897fe23`
 
-
 pub mod model;
 pub mod core;
 pub mod reactive;
 pub mod audit;
 pub mod orchestrator;
+pub mod llm;
 
 pub use model::{ActionOption, EntityState, SystemStateMatrix};
 pub use core::{DofCalculusCore, EPSILON, RIGIDITY_COEFFICIENT};
 pub use reactive::{decide_mode, Mode, FAST_PASS_THRESHOLD};
 pub use audit::{DofReport, EntityReportRow, OptionReportRow};
 pub use orchestrator::{Decision, DofOrchestrator, Generator};
+pub use llm::LlmGenerator;

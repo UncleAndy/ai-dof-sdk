@@ -48,6 +48,18 @@ impl DofOrchestrator {
         }
     }
 
+    /// The deterministic minimal-risk option used when no generator is
+    /// available or the generator fails (§5, §9). It preserves the status quo:
+    /// empty DoF deltas and reversible.
+    fn fallback_option() -> ActionOption {
+        ActionOption {
+            option_id: "fallback_0".to_string(),
+            description: "deterministic minimal-risk fallback (hold)".to_string(),
+            projected_dof_delta: HashMap::new(),
+            is_reversible: true,
+        }
+    }
+
     /// Run one decision cycle (SKILL.md loop):
     /// 1. Measurement — ensure global τ is consistent with the entities.
     /// 2. Generation — DEEP mode may call `generator`; FAST_PASS uses the
@@ -71,22 +83,20 @@ impl DofOrchestrator {
         let mode = decide_mode(tau);
 
         // 2. Generation.
-        let options: Vec<ActionOption> = match mode {
+        let generated = match mode {
             Mode::DeepDiversification => match generator {
                 Some(g) => g.generate(state),
-                None => vec![ActionOption {
-                    option_id: "fallback_0".to_string(),
-                    description: "deterministic minimal-risk fallback (hold)".to_string(),
-                    projected_dof_delta: HashMap::new(),
-                    is_reversible: true,
-                }],
+                None => Vec::new(),
             },
-            Mode::FastPass => vec![ActionOption {
-                option_id: "fallback_0".to_string(),
-                description: "deterministic minimal-risk fallback (hold)".to_string(),
-                projected_dof_delta: HashMap::new(),
-                is_reversible: true,
-            }],
+            // FAST_PASS bypasses the LLM entirely (§5): deterministic hold.
+            Mode::FastPass => Vec::new(),
+        };
+        // §9: if the generator produced nothing (unconfigured, empty, or failed),
+        // fall back to the deterministic minimal-risk option (preserve status quo).
+        let options: Vec<ActionOption> = if generated.is_empty() {
+            vec![Self::fallback_option()]
+        } else {
+            generated
         };
 
         // 3. Calculation & selection.
