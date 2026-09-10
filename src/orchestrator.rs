@@ -2,6 +2,8 @@
 //! (per `skills/SKILL.md` operational cycle) and produces a
 //! Proof-of-Implementation decision.
 
+use std::collections::HashMap;
+
 use crate::audit::DofReport;
 use crate::core::DofCalculusCore;
 use crate::model::{ActionOption, SystemStateMatrix};
@@ -72,9 +74,19 @@ impl DofOrchestrator {
         let options: Vec<ActionOption> = match mode {
             Mode::DeepDiversification => match generator {
                 Some(g) => g.generate(state),
-                None => vec![ActionOption::fallback("fallback_0")],
+                None => vec![ActionOption {
+                    option_id: "fallback_0".to_string(),
+                    description: "deterministic minimal-risk fallback (hold)".to_string(),
+                    projected_dof_delta: HashMap::new(),
+                    is_reversible: true,
+                }],
             },
-            Mode::FastPass => vec![ActionOption::fallback("fallback_0")],
+            Mode::FastPass => vec![ActionOption {
+                option_id: "fallback_0".to_string(),
+                description: "deterministic minimal-risk fallback (hold)".to_string(),
+                projected_dof_delta: HashMap::new(),
+                is_reversible: true,
+            }],
         };
 
         // 3. Calculation & selection.

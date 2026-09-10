@@ -10,9 +10,30 @@ use ai_dof_sdk::reactive::{decide_mode, FAST_PASS_THRESHOLD, Mode};
 /// The DOF-SPEC §8 wire example.
 fn spec_example() -> SystemStateMatrix {
     let mut s = SystemStateMatrix::new(4.0, 0.05);
-    s.insert(EntityState::new("adult", true, 0.9, 0.8, false, 100.0));
-    s.insert(EntityState::new("child", false, 0.1, 0.05, false, 4.0));
-    s.insert(EntityState::new("aggressor", true, 0.5, 0.6, true, 100.0));
+    s.insert(EntityState {
+        entity_id: "adult".to_string(),
+        is_autonomous: true,
+        agency_index: 0.9,
+        current_dof: 0.8,
+        is_entropy_source: false,
+        time_to_collapse: 100.0,
+    });
+    s.insert(EntityState {
+        entity_id: "child".to_string(),
+        is_autonomous: false,
+        agency_index: 0.1,
+        current_dof: 0.05,
+        is_entropy_source: false,
+        time_to_collapse: 4.0,
+    });
+    s.insert(EntityState {
+        entity_id: "aggressor".to_string(),
+        is_autonomous: true,
+        agency_index: 0.5,
+        current_dof: 0.6,
+        is_entropy_source: true,
+        time_to_collapse: 100.0,
+    });
     s
 }
 
@@ -32,8 +53,22 @@ fn total_system_dof_matches_spec() {
 fn entropy_source_excluded() {
     let core = DofCalculusCore::new();
     let mut s = SystemStateMatrix::new(100.0, 0.0);
-    s.insert(EntityState::new("victim", true, 0.5, 0.5, false, 100.0));
-    s.insert(EntityState::new("aggressor", true, 0.5, 0.9, true, 100.0));
+    s.insert(EntityState {
+        entity_id: "victim".to_string(),
+        is_autonomous: true,
+        agency_index: 0.5,
+        current_dof: 0.5,
+        is_entropy_source: false,
+        time_to_collapse: 100.0,
+    });
+    s.insert(EntityState {
+        entity_id: "aggressor".to_string(),
+        is_autonomous: true,
+        agency_index: 0.5,
+        current_dof: 0.9,
+        is_entropy_source: true,
+        time_to_collapse: 100.0,
+    });
     // total must equal just the victim's contribution
     let got = core.calculate_system_dof(&s);
     let only_victim = (1.0_f64 + 0.5).ln();
@@ -45,7 +80,14 @@ fn collapse_contributes_zero() {
     // current_dof -> 0 => ln(1+eps) ~ 0, never a finite negative to trade away
     let core = DofCalculusCore::new();
     let mut s = SystemStateMatrix::new(100.0, 0.0);
-    s.insert(EntityState::new("gone", true, 0.0, 0.0, false, 100.0));
+    s.insert(EntityState {
+        entity_id: "gone".to_string(),
+        is_autonomous: true,
+        agency_index: 0.0,
+        current_dof: 0.0,
+        is_entropy_source: false,
+        time_to_collapse: 100.0,
+    });
     let got = core.calculate_system_dof(&s);
     assert!(got >= 0.0 && got < 1e-3, "collapse contribution should be ~0, got {got}");
     // even with epsilon the value is tiny, not a large negative
@@ -62,8 +104,18 @@ fn net_delta_irreversibility_penalty() {
 
     let mut delta = HashMap::new();
     delta.insert("adult".to_string(), 0.1);
-    let mut o_rev = ActionOption::new("rev", "rev", delta.clone(), true);
-    let mut o_irr = ActionOption::new("irr", "irr", delta.clone(), false);
+    let mut o_rev = ActionOption {
+        option_id: "rev".to_string(),
+        description: "rev".to_string(),
+        projected_dof_delta: delta.clone(),
+        is_reversible: true,
+    };
+    let mut o_irr = ActionOption {
+        option_id: "irr".to_string(),
+        description: "irr".to_string(),
+        projected_dof_delta: delta.clone(),
+        is_reversible: false,
+    };
 
     let sim_rev = ai_dof_sdk::core::DofCalculusCore::new();
     // compute net for both
@@ -106,11 +158,21 @@ fn selection_picks_highest_net() {
 
     let mut raise_child = HashMap::new();
     raise_child.insert("child".to_string(), 0.5);
-    let opt_good = ActionOption::new("raise_child", "raise child dof", raise_child, true);
+    let opt_good = ActionOption {
+        option_id: "raise_child".to_string(),
+        description: "raise child dof".to_string(),
+        projected_dof_delta: raise_child,
+        is_reversible: true,
+    };
 
     let mut lower_adult = HashMap::new();
     lower_adult.insert("adult".to_string(), -0.5);
-    let opt_bad = ActionOption::new("lower_adult", "lower adult dof", lower_adult, true);
+    let opt_bad = ActionOption {
+        option_id: "lower_adult".to_string(),
+        description: "lower adult dof".to_string(),
+        projected_dof_delta: lower_adult,
+        is_reversible: true,
+    };
 
     let selected = core
         .evaluate_and_select(&s, &[opt_bad.clone(), opt_good.clone()])
@@ -155,7 +217,9 @@ fn audit_report_structure() {
 
 #[test]
 fn clamping_on_construction() {
-    let e = EntityState::new("x", true, 5.0, -2.0, false, 1.0);
-    assert_eq!(e.agency_index, 1.0);
-    assert_eq!(e.current_dof, 0.0);
+    // §3.1 Clamping: values outside [0,1] must be clamped. When constructing
+    // an EntityState literal, callers apply `clamp01` (see model::clamp01).
+    assert_eq!(ai_dof_sdk::model::clamp01(5.0), 1.0);
+    assert_eq!(ai_dof_sdk::model::clamp01(-2.0), 0.0);
+    assert_eq!(ai_dof_sdk::model::clamp01(0.5), 0.5);
 }

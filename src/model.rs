@@ -31,26 +31,6 @@ pub struct EntityState {
 }
 
 impl EntityState {
-    /// Construct an entity, clamping `agency_index` and `current_dof`
-    /// to `[0.0, 1.0]` (§3.1 Clamping).
-    pub fn new(
-        entity_id: impl Into<String>,
-        is_autonomous: bool,
-        agency_index: f64,
-        current_dof: f64,
-        is_entropy_source: bool,
-        time_to_collapse: f64,
-    ) -> Self {
-        EntityState {
-            entity_id: entity_id.into(),
-            is_autonomous,
-            agency_index: clamp01(agency_index),
-            current_dof: clamp01(current_dof),
-            is_entropy_source,
-            time_to_collapse,
-        }
-    }
-
     /// True iff this entity is at collapse (§3.1).
     pub fn is_collapsed(&self) -> bool {
         self.current_dof <= 0.0
@@ -125,31 +105,8 @@ pub struct ActionOption {
     pub is_reversible: bool,
 }
 
-impl ActionOption {
-    /// Construct an option. `projected_dof_delta` maps `entity_id` → DoF change.
-    pub fn new(
-        option_id: impl Into<String>,
-        description: impl Into<String>,
-        projected_dof_delta: HashMap<String, f64>,
-        is_reversible: bool,
-    ) -> Self {
-        ActionOption {
-            option_id: option_id.into(),
-            description: description.into(),
-            projected_dof_delta,
-            is_reversible,
-        }
-    }
-
-    /// A minimal-risk fallback option that preserves the status quo:
-    /// empty delta map and reversible. Used by the reactive circuit in
-    /// FAST_PASS mode (§5).
-    pub fn fallback(option_id: impl Into<String>) -> Self {
-        ActionOption::new(option_id, "deterministic minimal-risk fallback (hold)", HashMap::new(), true)
-    }
-}
-
-/// Clamp a value to `[0.0, 1.0]` (§3.1 Clamping).
+/// Clamp a value to `[0.0, 1.0]` (§3.1 Clamping). Exposed so that callers
+/// constructing an `EntityState` literal can normalize raw inputs.
 pub fn clamp01(x: f64) -> f64 {
     if x < 0.0 {
         0.0

@@ -17,9 +17,30 @@ use ai_dof_sdk::orchestrator::DofOrchestrator;
 fn build_example_state() -> SystemStateMatrix {
     // DOF-SPEC §8 wire example: adult, child, aggressor.
     let mut s = SystemStateMatrix::new(4.0, 0.05);
-    s.insert(EntityState::new("adult", true, 0.9, 0.8, false, 100.0));
-    s.insert(EntityState::new("child", false, 0.1, 0.05, false, 4.0));
-    s.insert(EntityState::new("aggressor", true, 0.5, 0.6, true, 100.0));
+    s.insert(EntityState {
+        entity_id: "adult".to_string(),
+        is_autonomous: true,
+        agency_index: 0.9,
+        current_dof: 0.8,
+        is_entropy_source: false,
+        time_to_collapse: 100.0,
+    });
+    s.insert(EntityState {
+        entity_id: "child".to_string(),
+        is_autonomous: false,
+        agency_index: 0.1,
+        current_dof: 0.05,
+        is_entropy_source: false,
+        time_to_collapse: 4.0,
+    });
+    s.insert(EntityState {
+        entity_id: "aggressor".to_string(),
+        is_autonomous: true,
+        agency_index: 0.5,
+        current_dof: 0.6,
+        is_entropy_source: true,
+        time_to_collapse: 100.0,
+    });
     s
 }
 
