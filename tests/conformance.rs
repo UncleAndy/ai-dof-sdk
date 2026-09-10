@@ -15,7 +15,7 @@ fn spec_example() -> SystemStateMatrix {
         is_autonomous: true,
         agency_index: 0.9,
         current_dof: 0.8,
-        is_entropy_source: false,
+        is_collapse_source: false,
         time_to_collapse: 100.0,
     });
     s.insert(EntityState {
@@ -23,7 +23,7 @@ fn spec_example() -> SystemStateMatrix {
         is_autonomous: false,
         agency_index: 0.1,
         current_dof: 0.05,
-        is_entropy_source: false,
+        is_collapse_source: false,
         time_to_collapse: 4.0,
     });
     s.insert(EntityState {
@@ -31,7 +31,7 @@ fn spec_example() -> SystemStateMatrix {
         is_autonomous: true,
         agency_index: 0.5,
         current_dof: 0.6,
-        is_entropy_source: true,
+        is_collapse_source: true,
         time_to_collapse: 100.0,
     });
     s
@@ -50,7 +50,7 @@ fn total_system_dof_matches_spec() {
 }
 
 #[test]
-fn entropy_source_excluded() {
+fn collapse_source_excluded() {
     let core = DofCalculusCore::new();
     let mut s = SystemStateMatrix::new(100.0, 0.0);
     s.insert(EntityState {
@@ -58,7 +58,7 @@ fn entropy_source_excluded() {
         is_autonomous: true,
         agency_index: 0.5,
         current_dof: 0.5,
-        is_entropy_source: false,
+        is_collapse_source: false,
         time_to_collapse: 100.0,
     });
     s.insert(EntityState {
@@ -66,7 +66,7 @@ fn entropy_source_excluded() {
         is_autonomous: true,
         agency_index: 0.5,
         current_dof: 0.9,
-        is_entropy_source: true,
+        is_collapse_source: true,
         time_to_collapse: 100.0,
     });
     // total must equal just the victim's contribution
@@ -85,7 +85,7 @@ fn collapse_contributes_zero() {
         is_autonomous: true,
         agency_index: 0.0,
         current_dof: 0.0,
-        is_entropy_source: false,
+        is_collapse_source: false,
         time_to_collapse: 100.0,
     });
     let got = core.calculate_system_dof(&s);
@@ -141,7 +141,7 @@ fn compute_net(_core: &DofCalculusCore, s: &SystemStateMatrix, o: &ActionOption,
     let projected = {
         let mut total = 0.0;
         for e in sim.values() {
-            if e.is_entropy_source { continue; }
+            if e.is_collapse_source { continue; }
             total += (1.0 + e.current_dof.max(EPSILON)).ln();
         }
         total

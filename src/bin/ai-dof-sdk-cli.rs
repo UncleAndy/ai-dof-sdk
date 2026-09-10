@@ -66,7 +66,7 @@ impl Generator for DemoGenerator {
 /// - `pedestrian`: a vulnerable actor with low current DoF and only 6 s before
 ///   collapse (they are about to step into the robot's path).
 /// - `delivery_robot`: the system itself, high current DoF.
-/// - `aggressive_driver`: an entropy source (running a red light) — excluded
+/// - `aggressive_driver`: a collapse source (running a red light) — excluded
 ///   from the DoF sum and not negotiated with.
 fn build_demo_state() -> SystemStateMatrix {
     // τ = 6.0 s (>= FAST_PASS_THRESHOLD) → DEEP_DIVERSIFICATION, the generator runs.
@@ -76,7 +76,7 @@ fn build_demo_state() -> SystemStateMatrix {
         is_autonomous: true,
         agency_index: 0.4,
         current_dof: 0.4,
-        is_entropy_source: false,
+        is_collapse_source: false,
         time_to_collapse: 6.0,
     });
     s.insert(EntityState {
@@ -84,7 +84,7 @@ fn build_demo_state() -> SystemStateMatrix {
         is_autonomous: true,
         agency_index: 0.8,
         current_dof: 0.7,
-        is_entropy_source: false,
+        is_collapse_source: false,
         time_to_collapse: 120.0,
     });
     s.insert(EntityState {
@@ -92,7 +92,7 @@ fn build_demo_state() -> SystemStateMatrix {
         is_autonomous: true,
         agency_index: 0.5,
         current_dof: 0.6,
-        is_entropy_source: true,
+        is_collapse_source: true,
         time_to_collapse: 120.0,
     });
     s

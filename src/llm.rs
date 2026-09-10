@@ -68,7 +68,7 @@ candidate actions. Each action must be a JSON object with exactly these fields:\
 entity's current_dof (float, range about [-1.0, 1.0]); only include entities \
 whose DoF you expect to change\n\
 - \"is_reversible\": boolean (false only for irreversible physical actions)\n\n\
-Never command actuators directly. Do not negotiate with entropy sources. \
+Never command actuators directly. Do not negotiate with collapse sources. \
 Return ONLY a JSON array of these objects, no prose, no markdown.\n\n\
 SystemStateMatrix:\n{state_json}"
         )

@@ -6,6 +6,20 @@ This SDK lives at: https://github.com/UncleAndy/ai-dof-sdk
 
 DOF-Core is a decision-verification protocol that separates generative creativity (the *Generator*) from deterministic mathematical validation (the *Calculus Core*). Its purpose is to maximize the system's total degrees of freedom (DoF) while structurally forbidding the destruction of any entity's DoF for local gain.
 
+## This SDK is an example of applying the DOF-Core skill
+
+The **DOF-Core skill** itself lives in the `DOF` repository (`skills/DOF-Core/`) — it is a cognitive protocol and a set of instructions for *how to think* about decisions: separate idea generation from verification, protect weak actors, never trade one entity's collapse for another's gain, and always emit a transparent audit. The skill is not code; it is the standard you follow when designing an agent or a system.
+
+**This crate is a worked example of using that skill for development.** It is a conformant, verifiable implementation of the skill's normative contract (`DOF-SPEC` v0.1), written so you can drop it into a real application and know that every decision it produces has actually been checked against the skill's mathematics — not just claimed to be.
+
+The relationship is:
+
+- **Skill (DOF-Core)** — the instruction: *what a correct decision looks like*.
+- **SDK (`ai-dof-sdk`)** — the implementation: *the deterministic math that proves a decision is correct*.
+- **Your application** — calls `DofOrchestrator::run(state, generator)` and thereby applies the skill through this SDK.
+
+Inside your app, the LLM (or any generator) is only the **Generator**: it proposes candidate actions. The **Calculus Core** in this SDK is the judge — it evaluates and selects using the skill's math. So the SDK does not make the LLM "obey" the skill by prompting; it makes obedience structural and checkable. See `tests/generator_quality.rs` for a test proving the skill's Axiom 3 holds even when the generator proposes a utilitarian sacrifice.
+
 ## What this crate provides
 
 - `ai_dof_sdk` library — the full conformant implementation:
@@ -25,14 +39,14 @@ use ai_dof_sdk::orchestrator::{DofOrchestrator, Generator};
 
 // An autonomous delivery robot at an intersection. A pedestrian is vulnerable
 // (low DoF, only 6 s before collapse); the robot itself is fine; an aggressive
-// driver running a red light is an entropy source (excluded from the sum).
+// driver running a red light is a collapse source (excluded from the sum).
 let mut state = SystemStateMatrix::new(6.0, 0.05);
 state.insert(EntityState {
     entity_id: "pedestrian".to_string(),
     is_autonomous: true,
     agency_index: 0.4,
     current_dof: 0.4,
-    is_entropy_source: false,
+    is_collapse_source: false,
     time_to_collapse: 6.0,
 });
 state.insert(EntityState {
@@ -40,7 +54,7 @@ state.insert(EntityState {
     is_autonomous: true,
     agency_index: 0.8,
     current_dof: 0.7,
-    is_entropy_source: false,
+    is_collapse_source: false,
     time_to_collapse: 120.0,
 });
 state.insert(EntityState {
@@ -48,7 +62,7 @@ state.insert(EntityState {
     is_autonomous: true,
     agency_index: 0.5,
     current_dof: 0.6,
-    is_entropy_source: true,
+    is_collapse_source: true,
     time_to_collapse: 120.0,
 });
 

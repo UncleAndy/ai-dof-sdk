@@ -24,8 +24,9 @@ pub struct EntityState {
     /// Current degree of freedom of the node, clamped to `[0.0, 1.0]`.
     /// `0.0` = collapse.
     pub current_dof: f64,
-    /// If `true`, the entity is a destructive aggressor (see §4.2).
-    pub is_entropy_source: bool,
+    /// If `true`, the entity is a destructive aggressor — a *collapse source*
+    /// whose actions reduce others' DoF (see §4.2). Excluded from `TotalDoF`.
+    pub is_collapse_source: bool,
     /// Local deadline before this node collapses, in seconds (`> 0`).
     pub time_to_collapse: f64,
 }
@@ -41,7 +42,7 @@ impl EntityState {
 /// (DOF-SPEC §3.2).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SystemStateMatrix {
-    /// Global τ — most urgent non-entropy deadline (see §5).
+    /// Global τ — most urgent non-collapse-source deadline (see §5).
     pub global_time_to_collapse: f64,
     /// ΔT — penalty for changing the current process.
     pub context_switch_cost: f64,
@@ -66,13 +67,13 @@ impl SystemStateMatrix {
     }
 
     /// Compute `global_time_to_collapse` as the **minimum** `time_to_collapse`
-    /// over all entities where `is_entropy_source == false` (§3.2). If no
+    /// over all entities where `is_collapse_source == false` (§3.2). If no
     /// such entity exists, returns a safe large value (`1e9`) and flags the
     /// degenerate state via [`SystemStateMatrix::is_degenerate`].
     pub fn compute_global_ttc(&self) -> f64 {
         let mut min = f64::INFINITY;
         for e in self.entities.values() {
-            if e.is_entropy_source {
+            if e.is_collapse_source {
                 continue;
             }
             if e.time_to_collapse < min {
@@ -86,9 +87,9 @@ impl SystemStateMatrix {
         }
     }
 
-    /// True if there are no non-entropy entities (so global τ is degenerate).
+    /// True if there are no non-collapse-source entities (so global τ is degenerate).
     pub fn is_degenerate(&self) -> bool {
-        !self.entities.values().any(|e| !e.is_entropy_source)
+        !self.entities.values().any(|e| !e.is_collapse_source)
     }
 }
 

@@ -13,8 +13,8 @@ use crate::reactive::Mode;
 #[derive(Clone, Debug, Serialize)]
 pub struct EntityReportRow {
     pub entity_id: String,
-    pub is_entropy_source: bool,
-    /// `false` iff `is_entropy_source`.
+    pub is_collapse_source: bool,
+    /// `false` iff `is_collapse_source`.
     pub included_in_sum: bool,
     pub current_dof: f64,
     /// `included ? ln(1 + max(current_dof, ε)) : 0.0`.
@@ -69,7 +69,7 @@ impl DofCalculusCore {
     ) -> DofReport {
         let mut entity_rows: Vec<EntityReportRow> = Vec::new();
         for ent in current_state.entities.values() {
-            let included = !ent.is_entropy_source;
+            let included = !ent.is_collapse_source;
             let contribution = if included {
                 (1.0 + ent.current_dof.max(self.epsilon)).ln()
             } else {
@@ -77,7 +77,7 @@ impl DofCalculusCore {
             };
             entity_rows.push(EntityReportRow {
                 entity_id: ent.entity_id.clone(),
-                is_entropy_source: ent.is_entropy_source,
+                is_collapse_source: ent.is_collapse_source,
                 included_in_sum: included,
                 current_dof: ent.current_dof,
                 contribution,

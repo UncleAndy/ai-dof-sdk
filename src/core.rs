@@ -13,7 +13,7 @@ pub const RIGIDITY_COEFFICIENT: f64 = 0.5;
 
 /// The deterministic verification layer of DOF-Core: it computes the systemic
 /// DoF, simulates options, and selects the best one. It never negotiates with
-/// Entropy Sources and never trades one entity's collapse for another's gain
+/// collapse sources and never trades one entity's collapse for another's gain
 /// (Axiom 3).
 #[derive(Clone, Debug)]
 pub struct DofCalculusCore {
@@ -35,14 +35,14 @@ impl DofCalculusCore {
 
     /// Non-linear sum of system degrees of freedom (§4.1).
     ///
-    /// Sum taken **only** over non-entropy entities (§4.2). As `current_dof → 0`,
+    /// Sum taken **only** over non-collapse-source entities (§4.2). As `current_dof → 0`,
     /// `ln(1 + dof) → 0`: a collapse contributes ~0, never a finite negative
     /// that a utilitarianism-style trade could "earn back". This is the
     /// structural guard against liquidating a unique future-state carrier.
     pub fn calculate_system_dof(&self, state: &SystemStateMatrix) -> f64 {
         let mut total = 0.0;
         for entity in state.entities.values() {
-            if entity.is_entropy_source {
+            if entity.is_collapse_source {
                 continue;
             }
             let dof = entity.current_dof.max(self.epsilon);
